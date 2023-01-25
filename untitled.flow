@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "version": 1,
+    "disable_limits": false,
+    "instance_type": "ml.m5.4xlarge"
+  },
+  "parameters": [],
+  "nodes": [
+    {
+      "node_id": "6e5fce65-85d5-4125-b697-1c749d3e7952",
+      "type": "SOURCE",
+      "operator": "sagemaker.s3_source_0.1",
+      "parameters": {
+        "dataset_definition": {
+          "__typename": "S3CreateDatasetDefinitionOutput",
+          "datasetSourceType": "S3",
+          "name": "Titanic_dataset",
+          "description": null,
+          "s3ExecutionContext": {
+            "__typename": "S3ExecutionContext",
+            "s3Uri": "s3://jumpstart-cache-prod-us-east-1/training-datasets/titanic/titanic_data.csv",
+            "s3ContentType": "csv",
+            "s3HasHeader": true,
+            "s3FieldDelimiter": ",",
+            "s3DirIncludesNested": null,
+            "s3AddsFilenameColumn": null,
+            "s3RoleArn": null
+          }
+        }
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "default",
+          "sampling": {
+            "sampling_method": "sample_by_limit",
+            "limit_rows": 50000
+          }
+        }
+      ]
+    },
+    {
+      "node_id": "34884d2e-9a01-4605-8adb-affb81f46bf1",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.infer_and_cast_type_0.1",
+      "parameters": {},
+      "trained_parameters": {
+        "schema": {
+          "pclass": "long",
+          "survived": "long",
+          "name": "string",
+          "sex": "string",
+          "age": "long",
+          "sibsp": "long",
+          "parch": "long",
+          "ticket": "string",
+          "fare": "float",
+          "cabin": "string",
+          "embarked": "string",
+          "boat": "string",
+          "body": "string",
+          "home.dest": "string"
+        }
+      },
+      "inputs": [
+        {
+          "name": "default",
+          "node_id": "6e5fce65-85d5-4125-b697-1c749d3e7952",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    }
+  ]
+}
