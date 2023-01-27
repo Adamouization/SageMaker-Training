@@ -1,0 +1,378 @@
+{
+    "Version": "2020-12-01",
+    "Metadata": {},
+    "Parameters": [
+        {
+            "Name": "ProcessingInstanceCount",
+            "Type": "Integer",
+            "DefaultValue": 1
+        },
+        {
+            "Name": "ModelApprovalStatus",
+            "Type": "String",
+            "DefaultValue": "PendingManualApproval"
+        },
+        {
+            "Name": "InputData",
+            "Type": "String",
+            "DefaultValue": "s3://sagemaker-us-east-1-512949343409/marketing/bank-additional-full.csv"
+        }
+    ],
+    "PipelineExperimentConfig": {
+        "ExperimentName": {
+            "Get": "Execution.PipelineName"
+        },
+        "TrialName": {
+            "Get": "Execution.PipelineExecutionId"
+        }
+    },
+    "Steps": [
+        {
+            "Name": "DataPreparation",
+            "Type": "Processing",
+            "Arguments": {
+                "ProcessingResources": {
+                    "ClusterConfig": {
+                        "InstanceType": "ml.m5.xlarge",
+                        "InstanceCount": {
+                            "Get": "Parameters.ProcessingInstanceCount"
+                        },
+                        "VolumeSizeInGB": 30
+                    }
+                },
+                "AppSpecification": {
+                    "ImageUri": "683313688378.dkr.ecr.us-east-1.amazonaws.com/sagemaker-scikit-learn:0.23-1-cpu-py3",
+                    "ContainerEntrypoint": [
+                        "python3",
+                        "/opt/ml/processing/input/code/preprocessing.py"
+                    ]
+                },
+                "RoleArn": "arn:aws:iam::512949343409:role/TeamRole",
+                "ProcessingInputs": [
+                    {
+                        "InputName": "input-1",
+                        "AppManaged": false,
+                        "S3Input": {
+                            "S3Uri": {
+                                "Get": "Parameters.InputData"
+                            },
+                            "LocalPath": "/opt/ml/processing/input",
+                            "S3DataType": "S3Prefix",
+                            "S3InputMode": "File",
+                            "S3DataDistributionType": "FullyReplicated",
+                            "S3CompressionType": "None"
+                        }
+                    },
+                    {
+                        "InputName": "code",
+                        "AppManaged": false,
+                        "S3Input": {
+                            "S3Uri": "s3://sagemaker-us-east-1-512949343409/WorkshopPipeline/code/07763aae5d7684dae5a352f34ba17ab1/preprocessing.py",
+                            "LocalPath": "/opt/ml/processing/input/code",
+                            "S3DataType": "S3Prefix",
+                            "S3InputMode": "File",
+                            "S3DataDistributionType": "FullyReplicated",
+                            "S3CompressionType": "None"
+                        }
+                    }
+                ],
+                "ProcessingOutputConfig": {
+                    "Outputs": [
+                        {
+                            "OutputName": "train",
+                            "AppManaged": false,
+                            "S3Output": {
+                                "S3Uri": {
+                                    "Std:Join": {
+                                        "On": "/",
+                                        "Values": [
+                                            "s3:/",
+                                            "sagemaker-us-east-1-512949343409",
+                                            "WorkshopPipeline",
+                                            {
+                                                "Get": "Execution.PipelineExecutionId"
+                                            },
+                                            "DataPreparation",
+                                            "output",
+                                            "train"
+                                        ]
+                                    }
+                                },
+                                "LocalPath": "/opt/ml/processing/train",
+                                "S3UploadMode": "EndOfJob"
+                            }
+                        },
+                        {
+                            "OutputName": "validation",
+                            "AppManaged": false,
+                            "S3Output": {
+                                "S3Uri": {
+                                    "Std:Join": {
+                                        "On": "/",
+                                        "Values": [
+                                            "s3:/",
+                                            "sagemaker-us-east-1-512949343409",
+                                            "WorkshopPipeline",
+                                            {
+                                                "Get": "Execution.PipelineExecutionId"
+                                            },
+                                            "DataPreparation",
+                                            "output",
+                                            "validation"
+                                        ]
+                                    }
+                                },
+                                "LocalPath": "/opt/ml/processing/validation",
+                                "S3UploadMode": "EndOfJob"
+                            }
+                        },
+                        {
+                            "OutputName": "test",
+                            "AppManaged": false,
+                            "S3Output": {
+                                "S3Uri": {
+                                    "Std:Join": {
+                                        "On": "/",
+                                        "Values": [
+                                            "s3:/",
+                                            "sagemaker-us-east-1-512949343409",
+                                            "WorkshopPipeline",
+                                            {
+                                                "Get": "Execution.PipelineExecutionId"
+                                            },
+                                            "DataPreparation",
+                                            "output",
+                                            "test"
+                                        ]
+                                    }
+                                },
+                                "LocalPath": "/opt/ml/processing/test",
+                                "S3UploadMode": "EndOfJob"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "Name": "ModelTraining",
+            "Type": "Training",
+            "Arguments": {
+                "AlgorithmSpecification": {
+                    "TrainingInputMode": "File",
+                    "TrainingImage": "683313688378.dkr.ecr.us-east-1.amazonaws.com/sagemaker-xgboost:1.0-1-cpu-py3"
+                },
+                "OutputDataConfig": {
+                    "S3OutputPath": "s3://sagemaker-us-east-1-512949343409/MarketingTrain"
+                },
+                "StoppingCondition": {
+                    "MaxRuntimeInSeconds": 86400
+                },
+                "ResourceConfig": {
+                    "VolumeSizeInGB": 30,
+                    "InstanceCount": 1,
+                    "InstanceType": "ml.m5.xlarge"
+                },
+                "RoleArn": "arn:aws:iam::512949343409:role/TeamRole",
+                "InputDataConfig": [
+                    {
+                        "DataSource": {
+                            "S3DataSource": {
+                                "S3DataType": "S3Prefix",
+                                "S3Uri": {
+                                    "Get": "Steps.DataPreparation.ProcessingOutputConfig.Outputs['train'].S3Output.S3Uri"
+                                },
+                                "S3DataDistributionType": "FullyReplicated"
+                            }
+                        },
+                        "ContentType": "text/csv",
+                        "ChannelName": "train"
+                    },
+                    {
+                        "DataSource": {
+                            "S3DataSource": {
+                                "S3DataType": "S3Prefix",
+                                "S3Uri": {
+                                    "Get": "Steps.DataPreparation.ProcessingOutputConfig.Outputs['validation'].S3Output.S3Uri"
+                                },
+                                "S3DataDistributionType": "FullyReplicated"
+                            }
+                        },
+                        "ContentType": "text/csv",
+                        "ChannelName": "validation"
+                    }
+                ],
+                "HyperParameters": {
+                    "objective": "binary:logistic",
+                    "num_round": "50",
+                    "max_depth": "5",
+                    "eta": "0.2",
+                    "gamma": "4",
+                    "min_child_weight": "6",
+                    "subsample": "0.7",
+                    "silent": "0"
+                },
+                "DebugHookConfig": {
+                    "S3OutputPath": "s3://sagemaker-us-east-1-512949343409/MarketingTrain",
+                    "CollectionConfigurations": []
+                },
+                "ProfilerConfig": {
+                    "S3OutputPath": "s3://sagemaker-us-east-1-512949343409/MarketingTrain",
+                    "DisableProfiler": false
+                }
+            }
+        },
+        {
+            "Name": "ModelEvaluation",
+            "Type": "Processing",
+            "Arguments": {
+                "ProcessingResources": {
+                    "ClusterConfig": {
+                        "InstanceType": "ml.m5.xlarge",
+                        "InstanceCount": 1,
+                        "VolumeSizeInGB": 30
+                    }
+                },
+                "AppSpecification": {
+                    "ImageUri": "683313688378.dkr.ecr.us-east-1.amazonaws.com/sagemaker-xgboost:1.0-1-cpu-py3",
+                    "ContainerEntrypoint": [
+                        "python3",
+                        "/opt/ml/processing/input/code/evaluation.py"
+                    ]
+                },
+                "RoleArn": "arn:aws:iam::512949343409:role/TeamRole",
+                "ProcessingInputs": [
+                    {
+                        "InputName": "input-1",
+                        "AppManaged": false,
+                        "S3Input": {
+                            "S3Uri": {
+                                "Get": "Steps.ModelTraining.ModelArtifacts.S3ModelArtifacts"
+                            },
+                            "LocalPath": "/opt/ml/processing/model",
+                            "S3DataType": "S3Prefix",
+                            "S3InputMode": "File",
+                            "S3DataDistributionType": "FullyReplicated",
+                            "S3CompressionType": "None"
+                        }
+                    },
+                    {
+                        "InputName": "input-2",
+                        "AppManaged": false,
+                        "S3Input": {
+                            "S3Uri": {
+                                "Get": "Steps.DataPreparation.ProcessingOutputConfig.Outputs['test'].S3Output.S3Uri"
+                            },
+                            "LocalPath": "/opt/ml/processing/test",
+                            "S3DataType": "S3Prefix",
+                            "S3InputMode": "File",
+                            "S3DataDistributionType": "FullyReplicated",
+                            "S3CompressionType": "None"
+                        }
+                    },
+                    {
+                        "InputName": "code",
+                        "AppManaged": false,
+                        "S3Input": {
+                            "S3Uri": "s3://sagemaker-us-east-1-512949343409/WorkshopPipeline/code/6b04c95afd1a23ee9dd88886a6d16d12/evaluation.py",
+                            "LocalPath": "/opt/ml/processing/input/code",
+                            "S3DataType": "S3Prefix",
+                            "S3InputMode": "File",
+                            "S3DataDistributionType": "FullyReplicated",
+                            "S3CompressionType": "None"
+                        }
+                    }
+                ],
+                "ProcessingOutputConfig": {
+                    "Outputs": [
+                        {
+                            "OutputName": "evaluation",
+                            "AppManaged": false,
+                            "S3Output": {
+                                "S3Uri": "s3://sagemaker-us-east-1-512949343409/script-marketing-eval-2023-01-27-16-09-21-757/output/evaluation",
+                                "LocalPath": "/opt/ml/processing/evaluation",
+                                "S3UploadMode": "EndOfJob"
+                            }
+                        }
+                    ]
+                }
+            },
+            "PropertyFiles": [
+                {
+                    "PropertyFileName": "EvaluationReport",
+                    "OutputName": "evaluation",
+                    "FilePath": "evaluation.json"
+                }
+            ]
+        },
+        {
+            "Name": "ConditionalCheck",
+            "Type": "Condition",
+            "Arguments": {
+                "Conditions": [
+                    {
+                        "Type": "GreaterThanOrEqualTo",
+                        "LeftValue": {
+                            "Std:JsonGet": {
+                                "PropertyFile": {
+                                    "Get": "Steps.ModelEvaluation.PropertyFiles.EvaluationReport"
+                                },
+                                "Path": "binary_classification_metrics.accuracy.value"
+                            }
+                        },
+                        "RightValue": 0.8
+                    }
+                ],
+                "IfSteps": [
+                    {
+                        "Name": "ModelRegistration-RegisterModel",
+                        "Type": "RegisterModel",
+                        "Arguments": {
+                            "ModelPackageGroupName": "mlops-workshop-model-group",
+                            "ModelMetrics": {
+                                "ModelQuality": {
+                                    "Statistics": {
+                                        "ContentType": "application/json",
+                                        "S3Uri": "s3://sagemaker-us-east-1-512949343409/script-marketing-eval-2023-01-27-16-09-21-757/output/evaluation/evaluation.json"
+                                    }
+                                },
+                                "Bias": {},
+                                "Explainability": {}
+                            },
+                            "InferenceSpecification": {
+                                "Containers": [
+                                    {
+                                        "Image": "683313688378.dkr.ecr.us-east-1.amazonaws.com/sagemaker-xgboost:1.0-1-cpu-py3",
+                                        "Environment": {},
+                                        "ModelDataUrl": {
+                                            "Get": "Steps.ModelTraining.ModelArtifacts.S3ModelArtifacts"
+                                        }
+                                    }
+                                ],
+                                "SupportedContentTypes": [
+                                    "text/csv"
+                                ],
+                                "SupportedResponseMIMETypes": [
+                                    "text/csv"
+                                ],
+                                "SupportedRealtimeInferenceInstanceTypes": [
+                                    "ml.t2.medium",
+                                    "ml.m5.xlarge",
+                                    "ml.m5.large"
+                                ],
+                                "SupportedTransformInstanceTypes": [
+                                    "ml.m5.xlarge",
+                                    "ml.m5.large"
+                                ]
+                            },
+                            "ModelApprovalStatus": {
+                                "Get": "Parameters.ModelApprovalStatus"
+                            }
+                        }
+                    }
+                ],
+                "ElseSteps": []
+            }
+        }
+    ]
+}
